@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库问答系统 (Vercel+Supabase)</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --success-color: #4cc9f0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+        }
+        
+        .container-main {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: bold;
+            padding: 15px 20px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .status-online { background: #28a745; color: white; }
+        .status-offline { background: #dc3545; color: white; }
+        .status-warning { background: #ffc107; color: black; }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .btn-success {
+            background: #4cc9f0;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .answer-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 5px solid var(--success-color);
+            min-height: 120px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: #e9ecef;
+        }
+        
+        .document-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s;
+        }
+        
+        .document-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(5px);
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+        }
+        
+        .api-status {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .system-health {
+            background: #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        footer {
+            background: rgba(0,0,0,0.2);
+            color: white;
+            padding: 20px 0;
+            margin-top: 40px;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .info-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: rgba(0,0,0,0.2);">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-brain me-2"></i>知识库问答系统 - Vercel+Supabase架构
+            </a>
+            <div class="navbar-text">
+                <span id="current-time">加载中...</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="container container-main">
+        <!-- 系统状态 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="system-health">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0"><i class="fas fa-heartbeat me-2"></i>系统健康状态</h4>
+                        <button class="btn btn-sm btn-outline-primary" onclick="checkSystemHealth()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新状态
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="api-status">
+                                <strong><i class="fas fa-globe me-1"></i>前端:</strong>
+                                <span class="status-online status-badge ms-2">✅ 在线</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="api-status">
+                                <strong><i class="fas fa-server me-1"></i>API服务:</strong>
+                                <span id="api-status" class="status-warning status-badge ms-2">检测中...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="api-status">
+                                <strong><i class="fas fa-database me-1"></i>数据库:</strong>
+                                <span id="db-status" class="status-warning status-badge ms-2">检测中...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="api-status">
+                                <strong><i class="fas fa-file-alt me-1"></i>文档数量:</strong>
+                                <span id="doc-count" class="ms-2">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <span class="info-badge"><i class="fas fa-bolt"></i> Vercel Serverless</span>
+                        <span class="info-badge"><i class="fas fa-database"></i> Supabase PostgreSQL</span>
+                        <span class="info-badge"><i class="fas fa-lock"></i> 环境变量加密</span>
+                        <span class="info-badge"><i class="fas fa-infinity"></i> 自动扩展</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左侧：文档上传 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-upload me-2"></i>上传文档到数据库
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-heading me-1"></i>文档标题</label>
+                            <input type="text" class="form-control" id="docTitle" 
+                                   placeholder="例如：服务器部署指南、项目文档">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-file-alt me-1"></i>文档内容</label>
+                            <textarea class="form-control" id="docContent" rows="5" 
+                                      placeholder="输入文档的详细内容...（建议不少于100字）"></textarea>
+                            <div class="form-text">内容将安全存储于Supabase PostgreSQL数据库</div>
+                        </div>
+                        
+                        <button class="btn btn-primary w-100 py-3" onclick="uploadDocument()" id="upload-btn">
+                            <i class="fas fa-cloud-upload-alt me-2"></i>保存到数据库
+                        </button>
+                        
+                        <div class="mt-3 text-center text-muted small">
+                            <i class="fas fa-shield-alt me-1"></i>数据传输使用HTTPS加密
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 文档列表 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-list me-2"></i>最近文档
+                    </div>
+                    <div class="card-body">
+                        <div id="recent-docs">
+                            <p class="text-muted text-center py-3">
+                                <i class="fas fa-database fa-2x mb-3"></i><br>
+                                数据库暂无文档
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：智能问答 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-robot me-2"></i>智能问答
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="question" 
+                                   placeholder="输入您的问题，例如：如何部署服务器？什么是知识库？"
+                                   onkeypress="if(event.keyCode==13) askQuestion()">
+                            <button class="btn btn-success px-4" onclick="askQuestion()" id="ask-btn">
+                                <i class="fas fa-question-circle me-2"></i>提问
+                            </button>
+                        </div>
+                        
+                        <div class="answer-box" id="answer">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-comments fa-3x mb-3"></i>
+                                <h5>等待您的问题</h5>
+                                <p class="small">答案将根据您上传的文档智能生成</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 d-flex justify-content-between">
+                            <small class="text-muted">
+                                <i class="fas fa-lightbulb me-1"></i>基于向量相似度检索
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>响应时间: <span id="response-time">-</span>ms
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统信息 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle me-2"></i>系统架构信息
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="small mb-1"><strong>前端托管</strong></p>
+                                <p class="small text-muted">Vercel (全球CDN)</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="small mb-1"><strong>后端API</strong></p>
+                                <p class="small text-muted">Vercel Serverless</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="small mb-1"><strong>数据库</strong></p>
+                                <p class="small text-muted">Supabase PostgreSQL</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="small mb-1"><strong>部署状态</strong></p>
+                                <p class="small text-muted" id="deploy-status">检测中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="text-center">
+        <div class="container">
+            <p class="mb-2">
+                <i class="fas fa-code me-1"></i>知识库问答系统 v2.0 | 
+                <i class="fas fa-cloud me-2 ms-3"></i>全栈Serverless架构 |
+                <i class="fas fa-user-shield me-2 ms-3"></i>企业级安全
+            </p>
+            <p class="mt-2 mb-0 small text-muted">
+                完全免费 | 自动扩展 | 无需服务器运维
+            </p>
+        </div>
+    </footer>
+
+    <!-- 消息提示容器 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- JavaScript代码 -->
+    <script>
+        // 配置信息
+        const CONFIG = {
+            apiBaseUrl: window.location.origin, // 自动使用当前域名
+            maxTitleLength: 100,
+            maxContentLength: 10000
+        };
+
+        // 工具函数：显示消息提示
+        function showToast(message, type = 'info', duration = 3000) {
+            const toastId = 'toast-' + Date.now();
+            const iconMap = {
+                'success': 'check-circle',
+                'error': 'exclamation-triangle',
+                'warning': 'exclamation-circle',
+                'info': 'info-circle'
+            };
+            const colorMap = {
+                'success': 'bg-success',
+                'error': 'bg-danger',
+                'warning': 'bg-warning',
+                'info': 'bg-primary'
+            };
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white ${colorMap[type]} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${iconMap[type]} me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('toast-container').insertAdjacentHTML('beforeend', toastHtml);
+            const toastEl = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastEl, { delay: duration });
+            toast.show();
+            
+            // 自动移除DOM元素
+            toastEl.addEventListener('hidden.bs.toast', () => {
+                toastEl.remove();
+            });
+        }
+
+        // 系统健康检查
+        async function checkSystemHealth() {
+            try {
+                // 检查API服务
+                const apiStartTime = Date.now();
+                const apiRes = await fetch(`${CONFIG.apiBaseUrl}/api/ask`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: '健康检查'})
+                });
+                const apiEndTime = Date.now();
+                
+                document.getElementById('api-status').className = apiRes.ok ? 
+                    'status-online status-badge ms-2' : 'status-offline status-badge ms-2';
+                document.getElementById('api-status').innerHTML = apiRes.ok ? 
+                    '✅ 在线' : '❌ 离线';
+                
+                // 更新部署状态
+                document.getElementById('deploy-status').textContent = apiRes.ok ? 
+                    '运行正常' : '服务异常';
+                document.getElementById('deploy-status').className = apiRes.ok ? 
+                    'small text-success' : 'small text-danger';
+                
+                // 显示响应时间
+                document.getElementById('response-time').textContent = apiEndTime - apiStartTime;
+                
+                showToast('系统状态已刷新', 'success');
+                
+            } catch (error) {
+                document.getElementById('api-status').className = 'status-offline status-badge ms-2';
+                document.getElementById('api-status').innerHTML = '❌ 异常';
+                console.error('健康检查失败:', error);
+            }
+        }
+
+        // 上传文档功能
+        async function uploadDocument() {
+            const title = document.getElementById('docTitle').value.trim();
+            const content = document.getElementById('docContent').value.trim();
+            const btn = document.getElementById('upload-btn');
+            
+            // 验证输入
+            if (!title) {
+                showToast('请输入文档标题', 'warning');
+                document.getElementById('docTitle').focus();
+                return;
+            }
+            
+            if (!content) {
+                showToast('请输入文档内容', 'warning');
+                document.getElementById('docContent').focus();
+                return;
+            }
+            
+            if (title.length > CONFIG.maxTitleLength) {
+                showToast(`标题过长（最大${CONFIG.maxTitleLength}字）`, 'warning');
+                return;
+            }
+            
+            if (content.length > CONFIG.maxContentLength) {
+                showToast(`内容过长（最大${CONFIG.maxContentLength}字）`, 'warning');
+                return;
+            }
+            
+            // 保存按钮状态
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> 保存中...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${CONFIG.apiBaseUrl}/api/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(`✅ 文档已保存！ID: ${data.document.id}`, 'success');
+                    
+                    // 清空表单
+                    document.getElementById('docTitle').value = '';
+                    document.getElementById('docContent').value = '';
+                    
+                    // 刷新系统状态
+                    checkSystemHealth();
+                    
+                } else {
+                    showToast(`保存失败: ${data.error || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showToast(`网络错误: ${error.message}`, 'error');
+                console.error('上传失败:', error);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 提问功能
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+            const btn = document.getElementById('ask-btn');
+            const answerBox = document.getElementById('answer');
+            
+            if (!question) {
+                showToast('请输入问题', 'warning');
+                document.getElementById('question').focus();
+                return;
+            }
+            
+            // 保存按钮状态
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> 思考中...';
+            btn.disabled = true;
+            
+            // 显示加载状态
+            answerBox.innerHTML = `
+                <div class="text-center py-4">
+                    <span class="spinner"></span>
+                    <p class="mt-3">正在查询知识库...</p>
+                    <p class="small text-muted">检索相关文档中</p>
+                </div>
+            `;
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${CONFIG.apiBaseUrl}/api/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                
+                const data = await response.json();
+                const endTime = Date.now();
+                
+                // 更新响应时间
+                document.getElementById('response-time').textContent = endTime - startTime;
+                
+                if (data.answer) {
+                    answerBox.innerHTML = `
+                        <div class="mb-3">
+                            <strong><i class="fas fa-reply me-2"></i>答案：</strong>
+                            <p class="mt-2">${data.answer.replace(/\n/g, '<br>')}</p>
+                        </div>
+                        <div class="p-3 bg-light rounded">
+                            <div class="row">
+                                <div class="col-6">
+                                    <small><i class="fas fa-chart-bar me-1"></i>匹配文档: ${data.matched_count}条</small>
+                                </div>
+                                <div class="col-6">
+                                    <small><i class="fas fa-database me-1"></i>知识库: ${data.total_documents}条</small>
+                                </div>
+                            </div>
+                            ${data.suggestions ? `
+                            <div class="mt-2">
+                                <small><i class="fas fa-lightbulb me-1"></i>建议：</small>
+                                <small>${data.suggestions.join(' · ')}</small>
+                            </div>` : ''}
+                        </div>
+                    `;
+                    
+                    showToast(`已回答您的问题（耗时${endTime - startTime}ms）`, 'success');
+                    
+                } else {
+                    answerBox.innerHTML = `
+                        <div class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.error || '获取答案失败'}
+                        </div>
+                    `;
+                    showToast('获取答案失败', 'error');
+                }
+            } catch (error) {
+                answerBox.innerHTML = `
+                    <div class="text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        网络请求失败: ${error.message}
+                    </div>
+                `;
+                showToast('网络请求失败', 'error');
+                console.error('提问失败:', error);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 时间显示更新
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleString('zh-CN', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+        }
+        
+        // 页面加载初始化
+        window.onload = function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // 初始健康检查
+            setTimeout(checkSystemHealth, 1000);
+            
+            // 控制台欢迎信息
+            console.log('知识库系统已加载 - 架构: Vercel + Supabase');
+            console.log('API地址:', CONFIG.apiBaseUrl);
+            
+            showToast('系统加载完成，欢迎使用！', 'info');
+        };
+    </script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
